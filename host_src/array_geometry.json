@@ -1,0 +1,22 @@
+{
+  "name": "tetrahedral_50mm",
+  "description": "Regular tetrahedron with 50mm spacing from center to vertices",
+  "positions": [
+    [0.025, 0.025, 0.025],
+    [0.025, -0.025, -0.025],
+    [-0.025, 0.025, -0.025],
+    [-0.025, -0.025, 0.025]
+  ],
+  "channel_mapping": {
+    "0": "Mic A-L (Local I2S Ch0)",
+    "1": "Mic A-R (Local I2S Ch1)",
+    "2": "Mic B-L (Local I2S Ch2)",
+    "3": "Mic B-R (Local I2S Ch3)",
+    "4": "Remote Ch0 (TDM from slave)",
+    "5": "Remote Ch1 (TDM from slave)",
+    "6": "Remote Ch2 (TDM from slave)",
+    "7": "Remote Ch3 (TDM from slave)"
+  },
+  "speed_of_sound": 343.0,
+  "sample_rate": 44100
+}

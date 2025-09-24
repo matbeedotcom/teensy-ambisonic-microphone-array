@@ -1,0 +1,16 @@
+{
+    "fileFormatVersion": "1",
+    "parameterSets": {
+        "New set 1": {
+            "board_thickness": "1.6000000000000001",
+            "clearance": "0.20000000000000001",
+            "frame_thickness": "2",
+            "mic_board_diameter": "15",
+            "mount_offset": "-10",
+            "mount_thickness": "3",
+            "slot_rotations": "[45, 90, 90, 45]",
+            "vertex_distance": "25",
+            "wire_diameter": "8"
+        }
+    }
+}

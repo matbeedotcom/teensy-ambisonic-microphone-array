@@ -770,6 +770,33 @@ let me know?  http://forum.pjrc.com/forums/4-Suggestions-amp-Bug-Reports
   #define ENDPOINT3_CONFIG	ENDPOINT_RECEIVE_ISOCHRONOUS + ENDPOINT_TRANSMIT_ISOCHRONOUS
   #define ENDPOINT4_CONFIG	ENDPOINT_RECEIVE_UNUSED + ENDPOINT_TRANSMIT_ISOCHRONOUS
 
+#elif defined(USB_AUDIO8)
+  #define VENDOR_ID		0x16C0
+  #define PRODUCT_ID		0x04D7  // 8-channel audio device
+  #define MANUFACTURER_NAME	{'T','e','e','n','s','y','d','u','i','n','o'}
+  #define MANUFACTURER_NAME_LEN	11
+  #define PRODUCT_NAME		{'T','e','e','n','s','y',' ','A','u','d','i','o',' ','8','C','H'}
+  #define PRODUCT_NAME_LEN	16
+  #define EP0_SIZE		64
+  #define NUM_ENDPOINTS         4
+  #define NUM_INTERFACE		4
+  #define SEREMU_INTERFACE      0	// Serial emulation
+  #define SEREMU_TX_ENDPOINT    2
+  #define SEREMU_TX_SIZE        64
+  #define SEREMU_TX_INTERVAL    1
+  #define SEREMU_RX_ENDPOINT    2
+  #define SEREMU_RX_SIZE        32
+  #define SEREMU_RX_INTERVAL    2
+  #define AUDIO_INTERFACE	1	// Audio (uses 3 consecutive interfaces)
+  #define AUDIO_TX_ENDPOINT     3
+  #define AUDIO_TX_SIZE         720  // 8 channels (8 * 90 = 720)
+  #define AUDIO_RX_ENDPOINT     3
+  #define AUDIO_RX_SIZE         720
+  #define AUDIO_SYNC_ENDPOINT	4
+  #define ENDPOINT2_CONFIG	ENDPOINT_RECEIVE_INTERRUPT + ENDPOINT_TRANSMIT_INTERRUPT
+  #define ENDPOINT3_CONFIG	ENDPOINT_RECEIVE_ISOCHRONOUS + ENDPOINT_TRANSMIT_ISOCHRONOUS
+  #define ENDPOINT4_CONFIG	ENDPOINT_RECEIVE_UNUSED + ENDPOINT_TRANSMIT_ISOCHRONOUS
+
 #elif defined(USB_MIDI_AUDIO_SERIAL)
   #define VENDOR_ID		0x16C0
   #define PRODUCT_ID		0x048A
