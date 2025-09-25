@@ -52,6 +52,10 @@ class DOAVisualizer(QMainWindow):
         self.current_elevation = 0.0
         self.current_confidence = 0.0
 
+        # Audio channel levels
+        self.channel_levels = np.zeros(4)
+        self.channel_data = None
+
         self.setup_ui()
         self.setup_audio()
 
@@ -66,8 +70,15 @@ class DOAVisualizer(QMainWindow):
         plots_widget = QWidget()
         plots_layout = QVBoxLayout(plots_widget)
 
+        # Channel levels plot
+        self.fig_channels = Figure(figsize=(8, 3))
+        self.canvas_channels = FigureCanvas(self.fig_channels)
+        self.ax_channels = self.fig_channels.add_subplot(111)
+        self.ax_channels.set_title("Audio Channel Levels")
+        plots_layout.addWidget(self.canvas_channels)
+
         # 2D Azimuth/Elevation plot
-        self.fig_2d = Figure(figsize=(8, 6))
+        self.fig_2d = Figure(figsize=(8, 4))
         self.canvas_2d = FigureCanvas(self.fig_2d)
         self.ax_2d = self.fig_2d.add_subplot(111, projection='polar')
         self.ax_2d.set_title("Sound Source Direction (Top View)")
@@ -76,7 +87,7 @@ class DOAVisualizer(QMainWindow):
         plots_layout.addWidget(self.canvas_2d)
 
         # 3D Sphere plot
-        self.fig_3d = Figure(figsize=(8, 6))
+        self.fig_3d = Figure(figsize=(8, 4))
         self.canvas_3d = FigureCanvas(self.fig_3d)
         self.ax_3d = self.fig_3d.add_subplot(111, projection='3d')
         self.ax_3d.set_title("3D Direction Visualization")
@@ -123,6 +134,21 @@ class DOAVisualizer(QMainWindow):
         readings_layout.addWidget(self.confidence_label, 2, 1)
 
         control_layout.addWidget(readings_group)
+
+        # Channel info group
+        channel_group = QGroupBox("Channel Levels")
+        channel_layout = QGridLayout(channel_group)
+
+        self.channel_labels = []
+        for i in range(4):
+            label = QLabel(f"Ch {i}:")
+            value = QLabel("0.000")
+            value.setFont(QFont("Arial", 10))
+            channel_layout.addWidget(label, i, 0)
+            channel_layout.addWidget(value, i, 1)
+            self.channel_labels.append(value)
+
+        control_layout.addWidget(channel_group)
 
         # Settings group
         settings_group = QGroupBox("Settings")
@@ -185,6 +211,11 @@ class DOAVisualizer(QMainWindow):
     def process_audio_block(self, audio_data: np.ndarray, timestamp: float):
         """Process incoming audio block and compute DOA."""
         try:
+            # Store channel data and calculate RMS levels
+            self.channel_data = audio_data
+            for i in range(min(4, audio_data.shape[1])):
+                self.channel_levels[i] = np.sqrt(np.mean(audio_data[:, i] ** 2))
+
             if self.use_srp_phat:
                 azimuth, elevation, confidence = self.doa_processor.srp_phat_doa(audio_data)
             else:
@@ -217,9 +248,52 @@ class DOAVisualizer(QMainWindow):
         self.elevation_label.setText(f"{self.current_elevation:.1f}°")
         self.confidence_label.setText(f"{self.current_confidence:.3f}")
 
+        # Update channel level labels
+        for i, label in enumerate(self.channel_labels):
+            if i < len(self.channel_levels):
+                label.setText(f"{self.channel_levels[i]:.3f}")
+
+        # Always update channel levels
+        self.update_channel_plot()
+
         if len(self.azimuth_history) > 0:
             self.update_2d_plot()
             self.update_3d_plot()
+
+    def update_channel_plot(self):
+        """Update channel levels visualization."""
+        self.ax_channels.clear()
+        self.ax_channels.set_title("Audio Channel Levels (RMS)")
+
+        # Channel numbers and colors
+        channels = ['Ch 0', 'Ch 1', 'Ch 2', 'Ch 3']
+        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+
+        # Create bar plot
+        x = np.arange(4)
+        bars = self.ax_channels.bar(x, self.channel_levels, color=colors, alpha=0.8, edgecolor='black', linewidth=2)
+
+        # Add channel labels with numbers
+        self.ax_channels.set_xticks(x)
+        self.ax_channels.set_xticklabels(channels, fontsize=12, fontweight='bold')
+
+        # Add value labels on bars
+        for i, (bar, level) in enumerate(zip(bars, self.channel_levels)):
+            height = bar.get_height()
+            if height > 0:
+                self.ax_channels.text(bar.get_x() + bar.get_width()/2., height,
+                                     f'{level:.3f}',
+                                     ha='center', va='bottom', fontsize=10)
+
+        # Set y-axis limits and labels
+        self.ax_channels.set_ylim(0, max(0.1, max(self.channel_levels) * 1.2))
+        self.ax_channels.set_ylabel('RMS Level', fontsize=11)
+        self.ax_channels.grid(axis='y', alpha=0.3)
+
+        # Add horizontal reference line at 0.01 (typical noise floor)
+        self.ax_channels.axhline(y=0.01, color='gray', linestyle='--', alpha=0.5, label='Noise floor')
+
+        self.canvas_channels.draw()
 
     def update_2d_plot(self):
         """Update 2D polar plot."""
