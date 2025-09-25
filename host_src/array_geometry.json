@@ -1,6 +1,14 @@
 {
-  "name": "tetrahedral_50mm",
-  "description": "Regular tetrahedron with 50mm spacing from center to vertices",
+  "name": "tetrahedral_43mm",
+  "description": "Regular tetrahedron with 43.3mm radius (center to vertex), 70.7mm edges - matches mechanical/tetrahedron_frame.scad",
+  "coordinate_system": {
+    "units": "meters",
+    "origin": "center of tetrahedron",
+    "orientation": "Vertex 0 at (+X,+Y,+Z), microphones face outward from center",
+    "reference": "mechanical/tetrahedron_frame.scad lines 32-37",
+    "actual_radius": "43.3mm from center to each vertex",
+    "edge_length": "70.7mm between vertices"
+  },
   "positions": [
     [0.025, 0.025, 0.025],
     [0.025, -0.025, -0.025],

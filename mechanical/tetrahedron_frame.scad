@@ -19,12 +19,12 @@
 vertex_distance = 25;           // Distance from center to vertex (25mm = 50mm spacing)
 mic_board_diameter = 15;        // Microphone breakout board diameter
 board_thickness = 1.6;          // PCB thickness
-wire_diameter = 15;              // Wire bundle diameter
+wire_diameter = 8;              // Wire bundle diameter
 frame_thickness = 2;            // Frame rod thickness
 mount_thickness = 3;            // Mounting pad thickness
-mount_offset = -4.5;             // Distance from vertex to mounting pad (mm)
+mount_offset = -10.0;             // Distance from vertex to mounting pad (mm)
 post_offset = 1.0;               // Distance from PCB edge to mounting posts (mm)
-slot_rotations = [45, 0, 115, -180]; // Optimized angles for each vertex
+slot_rotations = [45, 90, 90, 45]; // Optimized angles for each vertex
 clearance = 0.2;                // 3D printing clearance
 
 // Calculated tetrahedron vertices (regular tetrahedron)

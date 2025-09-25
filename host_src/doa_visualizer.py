@@ -11,7 +11,7 @@ from matplotlib.figure import Figure
 import matplotlib.patches as patches
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
                             QWidget, QPushButton, QLabel, QSpinBox, QCheckBox,
-                            QGroupBox, QGridLayout)
+                            QGroupBox, QGridLayout, QComboBox)
 from PyQt5.QtCore import QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QFont
 from mpl_toolkits.mplot3d import Axes3D
@@ -20,6 +20,7 @@ from collections import deque
 
 from audio_capture import TeensyAudioCapture
 from doa_processing import DOAProcessor
+from sound_classifier import SoundClassifier
 
 
 class DOAVisualizer(QMainWindow):
@@ -33,6 +34,7 @@ class DOAVisualizer(QMainWindow):
         # Initialize components
         self.audio_capture = TeensyAudioCapture()
         self.doa_processor = DOAProcessor()
+        self.sound_classifier = SoundClassifier()
 
         # Data storage for history
         self.history_length = 100
@@ -55,6 +57,12 @@ class DOAVisualizer(QMainWindow):
         # Audio channel levels
         self.channel_levels = np.zeros(4)
         self.channel_data = None
+
+        # Sound classification
+        self.current_sound_type = "unknown"
+        self.sound_confidence = 0.0
+        self.enabled_sound_types = set(['voice', 'music', 'clap', 'whistle'])  # Default enabled types
+        self.filter_by_sound = False
 
         self.setup_ui()
         self.setup_audio()
@@ -150,6 +158,42 @@ class DOAVisualizer(QMainWindow):
 
         control_layout.addWidget(channel_group)
 
+        # Sound Classification group
+        sound_group = QGroupBox("Sound Classification")
+        sound_layout = QGridLayout(sound_group)
+
+        # Current detected sound
+        sound_layout.addWidget(QLabel("Detected:"), 0, 0)
+        self.detected_sound_label = QLabel("unknown")
+        self.detected_sound_label.setFont(QFont("Arial", 10, QFont.Bold))
+        sound_layout.addWidget(self.detected_sound_label, 0, 1)
+
+        sound_layout.addWidget(QLabel("Confidence:"), 1, 0)
+        self.sound_confidence_label = QLabel("0.00")
+        sound_layout.addWidget(self.sound_confidence_label, 1, 1)
+
+        # Enable sound filtering
+        self.filter_sound_checkbox = QCheckBox("Filter by sound type")
+        self.filter_sound_checkbox.setChecked(False)
+        self.filter_sound_checkbox.stateChanged.connect(self.on_filter_sound_changed)
+        sound_layout.addWidget(self.filter_sound_checkbox, 2, 0, 1, 2)
+
+        # Sound type filters
+        sound_layout.addWidget(QLabel("Track sounds:"), 3, 0, 1, 2)
+
+        self.sound_checkboxes = {}
+        sound_types = ['voice', 'music', 'clap', 'whistle', 'noise']
+        for i, sound_type in enumerate(sound_types):
+            checkbox = QCheckBox(sound_type.capitalize())
+            checkbox.setChecked(sound_type in self.enabled_sound_types)
+            checkbox.stateChanged.connect(lambda state, st=sound_type: self.on_sound_type_changed(st, state))
+            row = 4 + i // 2
+            col = i % 2
+            sound_layout.addWidget(checkbox, row, col)
+            self.sound_checkboxes[sound_type] = checkbox
+
+        control_layout.addWidget(sound_group)
+
         # Settings group
         settings_group = QGroupBox("Settings")
         settings_layout = QGridLayout(settings_group)
@@ -216,6 +260,16 @@ class DOAVisualizer(QMainWindow):
             for i in range(min(4, audio_data.shape[1])):
                 self.channel_levels[i] = np.sqrt(np.mean(audio_data[:, i] ** 2))
 
+            # Classify sound type (use first channel for classification)
+            if audio_data.shape[1] > 0:
+                sound_type, sound_conf, _ = self.sound_classifier.classify(audio_data[:, 0])
+                self.current_sound_type = sound_type
+                self.sound_confidence = sound_conf
+
+                # Check if we should process this sound type
+                if self.filter_by_sound and sound_type not in self.enabled_sound_types:
+                    return  # Skip DOA processing for filtered sounds
+
             if self.use_srp_phat:
                 azimuth, elevation, confidence = self.doa_processor.srp_phat_doa(audio_data)
             else:
@@ -231,12 +285,17 @@ class DOAVisualizer(QMainWindow):
             self.current_elevation = elevation
             self.current_confidence = confidence
 
-            # Add to history
+            # Add to history (with sound type info)
             current_time = time.time()
             self.azimuth_history.append(azimuth)
             self.elevation_history.append(elevation)
             self.confidence_history.append(confidence)
             self.time_history.append(current_time)
+
+            # Store sound type history for visualization
+            if not hasattr(self, 'sound_type_history'):
+                self.sound_type_history = deque(maxlen=self.history_length)
+            self.sound_type_history.append(self.current_sound_type)
 
         except Exception as e:
             print(f"Error processing audio: {e}")
@@ -247,6 +306,22 @@ class DOAVisualizer(QMainWindow):
         self.azimuth_label.setText(f"{self.current_azimuth:.1f}°")
         self.elevation_label.setText(f"{self.current_elevation:.1f}°")
         self.confidence_label.setText(f"{self.current_confidence:.3f}")
+
+        # Update sound classification display
+        self.detected_sound_label.setText(self.current_sound_type.capitalize())
+        self.sound_confidence_label.setText(f"{self.sound_confidence:.2f}")
+
+        # Color code the sound type label
+        sound_colors = {
+            'voice': 'green',
+            'music': 'blue',
+            'clap': 'orange',
+            'whistle': 'purple',
+            'noise': 'gray',
+            'unknown': 'black'
+        }
+        color = sound_colors.get(self.current_sound_type, 'black')
+        self.detected_sound_label.setStyleSheet(f"color: {color}")
 
         # Update channel level labels
         for i, label in enumerate(self.channel_labels):
@@ -418,6 +493,17 @@ class DOAVisualizer(QMainWindow):
     def on_algorithm_changed(self, state):
         """Handle algorithm selection change."""
         self.use_srp_phat = (state == 2)  # Checked state
+
+    def on_filter_sound_changed(self, state):
+        """Handle sound filtering toggle."""
+        self.filter_by_sound = (state == 2)  # Checked state
+
+    def on_sound_type_changed(self, sound_type: str, state: int):
+        """Handle sound type filter change."""
+        if state == 2:  # Checked
+            self.enabled_sound_types.add(sound_type)
+        else:
+            self.enabled_sound_types.discard(sound_type)
 
     def closeEvent(self, event):
         """Handle window close event."""
