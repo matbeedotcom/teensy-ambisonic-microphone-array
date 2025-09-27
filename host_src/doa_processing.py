@@ -4,9 +4,10 @@ Calculates azimuth and elevation angles from multichannel audio data.
 """
 
 import numpy as np
-from numpy.fft import rfft, irfft
-from scipy.signal import find_peaks
-from typing import List, Tuple, Optional, Dict
+from numpy.fft import rfft, irfft, fft, ifft
+from scipy.signal import find_peaks, butter, filtfilt
+from scipy.linalg import inv
+from typing import List, Tuple, Optional, Dict, Union
 import json
 
 
@@ -22,6 +23,10 @@ class DOAProcessor:
         # Processing parameters
         self.eps = 1e-12  # Regularization for PHAT weighting
         self.max_lag_samples = self.calculate_max_lag_samples()
+
+        # Beamforming parameters
+        self.steering_vectors_cache = {}
+        self.mvdr_reg = 1e-6  # Regularization for MVDR covariance matrix
 
     def load_config(self, config_file: str):
         """Load array geometry and configuration."""
@@ -271,39 +276,396 @@ class DOAProcessor:
 
         return azimuth, elevation, confidence
 
+    def compute_steering_vector(self, azimuth: float, elevation: float, freq: float) -> np.ndarray:
+        """
+        Compute steering vector for given direction and frequency.
+
+        Args:
+            azimuth: Azimuth angle in degrees
+            elevation: Elevation angle in degrees
+            freq: Frequency in Hz
+
+        Returns:
+            Complex steering vector for all microphones
+        """
+        # Convert angles to unit vector
+        el_rad = np.radians(elevation)
+        az_rad = np.radians(azimuth)
+
+        direction = np.array([
+            np.cos(el_rad) * np.cos(az_rad),
+            np.cos(el_rad) * np.sin(az_rad),
+            np.sin(el_rad)
+        ])
+
+        # Compute delays for each microphone
+        wavelength = self.speed_of_sound / freq
+        k = 2 * np.pi / wavelength  # Wave number
+
+        steering_vector = np.zeros(self.num_mics, dtype=complex)
+        for i in range(self.num_mics):
+            # Phase shift due to path difference
+            path_diff = np.dot(direction, self.positions[i])
+            steering_vector[i] = np.exp(1j * k * path_diff)
+
+        return steering_vector
+
+    def delay_and_sum_beamformer(self, audio_block: np.ndarray,
+                                  azimuth: float, elevation: float) -> np.ndarray:
+        """
+        Delay-and-sum beamformer - simplest beamforming method.
+        Applies delays to align signals from target direction and sums them.
+
+        Args:
+            audio_block: Multi-channel audio data [samples, channels]
+            azimuth: Target azimuth angle in degrees
+            elevation: Target elevation angle in degrees
+
+        Returns:
+            Beamformed output signal [samples]
+        """
+        if audio_block.shape[1] != self.num_mics:
+            raise ValueError(f"Expected {self.num_mics} channels, got {audio_block.shape[1]}")
+
+        # Convert angles to unit vector
+        el_rad = np.radians(elevation)
+        az_rad = np.radians(azimuth)
+
+        direction = np.array([
+            np.cos(el_rad) * np.cos(az_rad),
+            np.cos(el_rad) * np.sin(az_rad),
+            np.sin(el_rad)
+        ])
+
+        # Calculate delays for each microphone
+        delays_seconds = np.zeros(self.num_mics)
+        for i in range(self.num_mics):
+            # Time for sound to travel from source to microphone
+            delays_seconds[i] = -np.dot(direction, self.positions[i]) / self.speed_of_sound
+
+        # Convert to sample delays
+        delays_samples = delays_seconds * self.sample_rate
+
+        # Apply fractional delay using frequency domain
+        N = len(audio_block)
+        output = np.zeros(N)
+
+        for i in range(self.num_mics):
+            # FFT of channel
+            X = fft(audio_block[:, i])
+
+            # Apply phase shift for fractional delay
+            freqs = np.fft.fftfreq(N, 1/self.sample_rate)
+            phase_shift = np.exp(-2j * np.pi * freqs * delays_samples[i])
+            X_delayed = X * phase_shift
+
+            # IFFT and add to output
+            delayed_signal = np.real(ifft(X_delayed))
+            output += delayed_signal
+
+        # Normalize by number of microphones
+        output /= self.num_mics
+
+        return output
+
+    def mvdr_beamformer(self, audio_block: np.ndarray,
+                        azimuth: float, elevation: float,
+                        freq_range: Tuple[float, float] = (200, 4000)) -> np.ndarray:
+        """
+        Minimum Variance Distortionless Response (MVDR) adaptive beamformer.
+        Minimizes output power while maintaining unity gain in target direction.
+
+        Args:
+            audio_block: Multi-channel audio data [samples, channels]
+            azimuth: Target azimuth angle in degrees
+            elevation: Target elevation angle in degrees
+            freq_range: Frequency range to optimize over (Hz)
+
+        Returns:
+            Beamformed output signal [samples]
+        """
+        if audio_block.shape[1] != self.num_mics:
+            raise ValueError(f"Expected {self.num_mics} channels, got {audio_block.shape[1]}")
+
+        N = len(audio_block)
+
+        # Apply window to reduce spectral leakage
+        window = np.hanning(N)
+        audio_windowed = audio_block * window[:, np.newaxis]
+
+        # FFT of all channels
+        X = fft(audio_windowed, axis=0)
+
+        # Frequency bins
+        freqs = np.fft.fftfreq(N, 1/self.sample_rate)
+
+        # Find bins within frequency range
+        freq_mask = (np.abs(freqs) >= freq_range[0]) & (np.abs(freqs) <= freq_range[1])
+
+        # Output spectrum
+        Y = np.zeros(N, dtype=complex)
+
+        for k in range(N):
+            if not freq_mask[k]:
+                # Outside frequency range, just average
+                Y[k] = np.mean(X[k, :])
+                continue
+
+            # Compute steering vector for this frequency
+            freq = np.abs(freqs[k])
+            if freq < 1:  # Avoid DC
+                Y[k] = np.mean(X[k, :])
+                continue
+
+            steering_vec = self.compute_steering_vector(azimuth, elevation, freq)
+
+            # Estimate covariance matrix at this frequency bin
+            # Using single snapshot (instantaneous)
+            x_k = X[k, :].reshape(-1, 1)
+            R = np.outer(x_k, np.conj(x_k))
+
+            # Add regularization for stability
+            R_reg = R + self.mvdr_reg * np.eye(self.num_mics)
+
+            # MVDR weights: w = (R^-1 * a) / (a^H * R^-1 * a)
+            # where a is the steering vector
+            try:
+                R_inv = inv(R_reg)
+                numerator = R_inv @ steering_vec.reshape(-1, 1)
+                denominator = np.conj(steering_vec.reshape(1, -1)) @ numerator
+                weights = numerator / (denominator + self.eps)
+
+                # Apply weights
+                Y[k] = (np.conj(weights.T) @ X[k, :])[0, 0]
+            except:
+                # Fallback to simple averaging if matrix inversion fails
+                Y[k] = np.mean(X[k, :])
+
+        # IFFT to get time domain output
+        output = np.real(ifft(Y))
+
+        return output
+
+    def broadband_mvdr_beamformer(self, audio_block: np.ndarray,
+                                  azimuth: float, elevation: float,
+                                  block_size: int = 512) -> np.ndarray:
+        """
+        Broadband MVDR beamformer using block processing.
+        Better for real-time applications.
+
+        Args:
+            audio_block: Multi-channel audio data [samples, channels]
+            azimuth: Target azimuth angle in degrees
+            elevation: Target elevation angle in degrees
+            block_size: Processing block size
+
+        Returns:
+            Beamformed output signal [samples]
+        """
+        N = len(audio_block)
+        num_blocks = N // block_size
+        output = np.zeros(N)
+
+        # Estimate global covariance matrix
+        R_global = np.zeros((self.num_mics, self.num_mics), dtype=complex)
+
+        for b in range(num_blocks):
+            start = b * block_size
+            end = start + block_size
+            block = audio_block[start:end, :]
+
+            # Window the block
+            window = np.hanning(block_size)
+            block_windowed = block * window[:, np.newaxis]
+
+            # FFT
+            X = fft(block_windowed, axis=0)
+
+            # Accumulate covariance
+            for k in range(block_size // 2):  # Only positive frequencies
+                x_k = X[k, :].reshape(-1, 1)
+                R_global += np.outer(x_k, np.conj(x_k))
+
+        # Normalize covariance
+        R_global /= (num_blocks * block_size // 2)
+        R_global += self.mvdr_reg * np.eye(self.num_mics)
+
+        # Process blocks with fixed weights
+        for b in range(num_blocks):
+            start = b * block_size
+            end = start + block_size
+            block = audio_block[start:end, :]
+
+            # Apply MVDR with global covariance
+            block_output = self._apply_mvdr_weights(block, R_global, azimuth, elevation)
+
+            # Overlap-add (simple rectangular window here)
+            output[start:end] = block_output
+
+        return output
+
+    def _apply_mvdr_weights(self, block: np.ndarray, R: np.ndarray,
+                           azimuth: float, elevation: float) -> np.ndarray:
+        """
+        Helper function to apply MVDR weights to a block.
+        """
+        block_size = len(block)
+        window = np.hanning(block_size)
+        block_windowed = block * window[:, np.newaxis]
+
+        # FFT
+        X = fft(block_windowed, axis=0)
+        Y = np.zeros(block_size, dtype=complex)
+
+        freqs = np.fft.fftfreq(block_size, 1/self.sample_rate)
+
+        for k in range(block_size):
+            freq = np.abs(freqs[k])
+            if freq < 10:  # Skip very low frequencies
+                Y[k] = np.mean(X[k, :])
+                continue
+
+            # Steering vector
+            steering_vec = self.compute_steering_vector(azimuth, elevation, freq)
+
+            # MVDR weights
+            try:
+                R_inv = inv(R)
+                numerator = R_inv @ steering_vec.reshape(-1, 1)
+                denominator = np.conj(steering_vec.reshape(1, -1)) @ numerator
+                weights = numerator / (denominator + self.eps)
+
+                Y[k] = (np.conj(weights.T) @ X[k, :])[0, 0]
+            except:
+                Y[k] = np.mean(X[k, :])
+
+        return np.real(ifft(Y))
+
+    def superdirective_beamformer(self, audio_block: np.ndarray,
+                                  azimuth: float, elevation: float,
+                                  white_noise_gain_constraint: float = -10) -> np.ndarray:
+        """
+        Superdirective beamformer optimized for maximum directivity.
+        Includes white noise gain constraint for robustness.
+
+        Args:
+            audio_block: Multi-channel audio data [samples, channels]
+            azimuth: Target azimuth angle in degrees
+            elevation: Target elevation angle in degrees
+            white_noise_gain_constraint: Maximum white noise gain in dB
+
+        Returns:
+            Beamformed output signal [samples]
+        """
+        # Convert white noise gain constraint to linear
+        wng_linear = 10 ** (white_noise_gain_constraint / 10)
+
+        N = len(audio_block)
+        output = np.zeros(N)
+
+        # Process in frequency domain
+        window = np.hanning(N)
+        audio_windowed = audio_block * window[:, np.newaxis]
+        X = fft(audio_windowed, axis=0)
+        Y = np.zeros(N, dtype=complex)
+
+        freqs = np.fft.fftfreq(N, 1/self.sample_rate)
+
+        for k in range(N):
+            freq = np.abs(freqs[k])
+            if freq < 10:
+                Y[k] = np.mean(X[k, :])
+                continue
+
+            # Steering vector
+            steering_vec = self.compute_steering_vector(azimuth, elevation, freq)
+
+            # Diffuse noise coherence matrix (sinc function for spherical noise field)
+            Gamma = np.zeros((self.num_mics, self.num_mics), dtype=complex)
+            for i in range(self.num_mics):
+                for j in range(self.num_mics):
+                    if i == j:
+                        Gamma[i, j] = 1.0
+                    else:
+                        dist = np.linalg.norm(self.positions[i] - self.positions[j])
+                        kr = 2 * np.pi * freq * dist / self.speed_of_sound
+                        Gamma[i, j] = np.sinc(kr / np.pi)  # sinc(x) = sin(πx)/(πx)
+
+            # Regularize with white noise gain constraint
+            Gamma_reg = Gamma + wng_linear * np.eye(self.num_mics)
+
+            # Superdirective weights
+            try:
+                Gamma_inv = inv(Gamma_reg)
+                numerator = Gamma_inv @ steering_vec.reshape(-1, 1)
+                denominator = np.conj(steering_vec.reshape(1, -1)) @ numerator
+                weights = numerator / (denominator + self.eps)
+
+                Y[k] = (np.conj(weights.T) @ X[k, :])[0, 0]
+            except:
+                Y[k] = np.mean(X[k, :])
+
+        output = np.real(ifft(Y))
+        return output
+
 
 if __name__ == "__main__":
     # Test the DOA processor with synthetic data
     processor = DOAProcessor()
 
-    # Create synthetic test signal (4 channels, 1024 samples)
-    N = 1024
+    # Create synthetic test signal with multiple sources
+    N = 2048  # Longer signal for better beamforming
     t = np.arange(N) / processor.sample_rate
 
-    # Simulate a source at 45° azimuth, 30° elevation
-    true_az, true_el = 45.0, 30.0
-    true_direction = np.array([
-        np.cos(np.radians(true_el)) * np.cos(np.radians(true_az)),
-        np.cos(np.radians(true_el)) * np.sin(np.radians(true_az)),
-        np.sin(np.radians(true_el))
+    # Source 1: Target at 45° azimuth, 30° elevation (1kHz tone)
+    target_az, target_el = 45.0, 30.0
+    target_direction = np.array([
+        np.cos(np.radians(target_el)) * np.cos(np.radians(target_az)),
+        np.cos(np.radians(target_el)) * np.sin(np.radians(target_az)),
+        np.sin(np.radians(target_el))
     ])
 
-    # Generate test signal with appropriate delays
-    base_signal = np.sin(2 * np.pi * 1000 * t)  # 1kHz tone
+    # Source 2: Interference at -60° azimuth, 0° elevation (800Hz tone)
+    interf_az, interf_el = -60.0, 0.0
+    interf_direction = np.array([
+        np.cos(np.radians(interf_el)) * np.cos(np.radians(interf_az)),
+        np.cos(np.radians(interf_el)) * np.sin(np.radians(interf_az)),
+        np.sin(np.radians(interf_el))
+    ])
+
+    # Generate test signals
+    target_signal = np.sin(2 * np.pi * 1000 * t)  # 1kHz tone
+    interf_signal = 0.8 * np.sin(2 * np.pi * 800 * t)  # 800Hz tone (slightly weaker)
+
     test_audio = np.zeros((N, processor.num_mics))
 
+    # Add target source
     for i in range(processor.num_mics):
-        # Calculate delay for this microphone
-        delay_time = np.dot(true_direction, processor.positions[i]) / processor.speed_of_sound
+        delay_time = np.dot(target_direction, processor.positions[i]) / processor.speed_of_sound
         delay_samples = int(delay_time * processor.sample_rate)
 
-        # Apply delay and add some noise
         if delay_samples >= 0:
-            test_audio[delay_samples:, i] = base_signal[:-delay_samples] if delay_samples > 0 else base_signal
+            test_audio[delay_samples:, i] += target_signal[:-delay_samples] if delay_samples > 0 else target_signal
         else:
-            test_audio[:delay_samples, i] = base_signal[-delay_samples:]
+            test_audio[:delay_samples, i] += target_signal[-delay_samples:]
 
-        test_audio[:, i] += np.random.normal(0, 0.1, N)  # Add noise
+    # Add interference source
+    for i in range(processor.num_mics):
+        delay_time = np.dot(interf_direction, processor.positions[i]) / processor.speed_of_sound
+        delay_samples = int(delay_time * processor.sample_rate)
+
+        if delay_samples >= 0:
+            test_audio[delay_samples:, i] += interf_signal[:-delay_samples] if delay_samples > 0 else interf_signal
+        else:
+            test_audio[:delay_samples, i] += interf_signal[-delay_samples:]
+
+    # Add ambient noise
+    for i in range(processor.num_mics):
+        test_audio[:, i] += np.random.normal(0, 0.05, N)
+
+    print("=" * 60)
+    print("DOA ESTIMATION TESTS")
+    print("=" * 60)
 
     # Test SRP-PHAT
     az_srp, el_srp, conf_srp = processor.srp_phat_doa(test_audio)
@@ -314,4 +676,70 @@ if __name__ == "__main__":
     az_ls, el_ls, conf_ls = processor.least_squares_doa(tdoas)
     print(f"Least-squares: Az={az_ls:.1f}°, El={el_ls:.1f}° (confidence={conf_ls:.3f})")
 
-    print(f"True direction: Az={true_az}°, El={true_el}°")
+    print(f"Target source: Az={target_az}°, El={target_el}° (1kHz)")
+    print(f"Interference: Az={interf_az}°, El={interf_el}° (800Hz)")
+
+    print("\n" + "=" * 60)
+    print("BEAMFORMING TESTS")
+    print("=" * 60)
+
+    # Test delay-and-sum beamformer
+    print("\n1. Delay-and-Sum Beamformer:")
+    beamformed_das = processor.delay_and_sum_beamformer(test_audio, target_az, target_el)
+
+    # Calculate SNR improvement
+    mixed_power = np.mean(test_audio ** 2)
+    beamformed_power = np.mean(beamformed_das ** 2)
+
+    # Estimate target and interference in beamformed output
+    fft_beam = np.abs(np.fft.rfft(beamformed_das))
+    freqs = np.fft.rfftfreq(len(beamformed_das), 1/processor.sample_rate)
+
+    idx_1khz = np.argmin(np.abs(freqs - 1000))
+    idx_800hz = np.argmin(np.abs(freqs - 800))
+
+    target_gain = fft_beam[idx_1khz] / N
+    interf_suppression = fft_beam[idx_800hz] / N
+
+    print(f"   Target (1kHz) relative amplitude: {target_gain:.3f}")
+    print(f"   Interference (800Hz) relative amplitude: {interf_suppression:.3f}")
+    print(f"   Interference suppression: {20*np.log10(interf_suppression/target_gain):.1f} dB")
+
+    # Test MVDR beamformer
+    print("\n2. MVDR Adaptive Beamformer:")
+    beamformed_mvdr = processor.mvdr_beamformer(test_audio, target_az, target_el)
+
+    fft_mvdr = np.abs(np.fft.rfft(beamformed_mvdr))
+    target_gain_mvdr = fft_mvdr[idx_1khz] / N
+    interf_suppression_mvdr = fft_mvdr[idx_800hz] / N
+
+    print(f"   Target (1kHz) relative amplitude: {target_gain_mvdr:.3f}")
+    print(f"   Interference (800Hz) relative amplitude: {interf_suppression_mvdr:.3f}")
+    print(f"   Interference suppression: {20*np.log10(interf_suppression_mvdr/target_gain_mvdr):.1f} dB")
+
+    # Test broadband MVDR
+    print("\n3. Broadband MVDR Beamformer:")
+    beamformed_bb_mvdr = processor.broadband_mvdr_beamformer(test_audio, target_az, target_el)
+
+    fft_bb_mvdr = np.abs(np.fft.rfft(beamformed_bb_mvdr))
+    target_gain_bb = fft_bb_mvdr[idx_1khz] / N
+    interf_suppression_bb = fft_bb_mvdr[idx_800hz] / N
+
+    print(f"   Target (1kHz) relative amplitude: {target_gain_bb:.3f}")
+    print(f"   Interference (800Hz) relative amplitude: {interf_suppression_bb:.3f}")
+    print(f"   Interference suppression: {20*np.log10(interf_suppression_bb/target_gain_bb):.1f} dB")
+
+    # Test superdirective beamformer
+    print("\n4. Superdirective Beamformer:")
+    beamformed_super = processor.superdirective_beamformer(test_audio, target_az, target_el)
+
+    fft_super = np.abs(np.fft.rfft(beamformed_super))
+    target_gain_super = fft_super[idx_1khz] / N
+    interf_suppression_super = fft_super[idx_800hz] / N
+
+    print(f"   Target (1kHz) relative amplitude: {target_gain_super:.3f}")
+    print(f"   Interference (800Hz) relative amplitude: {interf_suppression_super:.3f}")
+    print(f"   Interference suppression: {20*np.log10(interf_suppression_super/target_gain_super):.1f} dB")
+
+    print("\n" + "=" * 60)
+    print("Beamforming successfully implemented!")
