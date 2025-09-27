@@ -20,6 +20,7 @@
 #include "../../odas/include/odas/message/msg_powers.h"
 #include "../../odas/include/odas/connector/con_spectra.h"
 #include "../../odas/include/odas/connector/con_powers.h"
+#include "../../odas/include/odas/connector/con_pots.h"
 #include "../../odas/include/odas/general/mic.h"
 #include "../../odas/include/odas/general/samplerate.h"
 #include "../../odas/include/odas/general/soundspeed.h"
@@ -43,7 +44,11 @@ int doa_processing_init(doa_processing_t *proc, const char *config_file) {
         fprintf(stderr, "Failed to create microphone configuration\n");
         return -1;
     }
-    printf("Microphone configuration created\n");
+
+    // Set number of pairs for 4 microphones: C(4,2) = 6 pairs
+    // Pairs: (0,1), (0,2), (0,3), (1,2), (1,3), (2,3)
+    proc->mics->nPairs = 6;
+    printf("Microphone configuration created with %d pairs\n", proc->mics->nPairs);
 
     // Set up tetrahedral microphone positions directly in the mu array
     printf("Setting microphone positions...\n");
@@ -139,28 +144,26 @@ int doa_processing_init(doa_processing_t *proc, const char *config_file) {
     proc->mod_ssl_cfg->samplerate = proc->samplerate;
     proc->mod_ssl_cfg->soundspeed = proc->soundspeed;
     proc->mod_ssl_cfg->spatialfilters = proc->spatialfilters;
-    proc->mod_ssl_cfg->interpRate = 4;  // ReSpeaker interpolation rate
-    proc->mod_ssl_cfg->epsilon = 1e-20f; // ReSpeaker regularization (from general->epsilon)
+    proc->mod_ssl_cfg->interpRate = 1;  // Minimal interpolation for debugging
+    proc->mod_ssl_cfg->epsilon = 1e-6f; // Less aggressive regularization
 
-    // Use ReSpeaker SSL configuration that works
-    proc->mod_ssl_cfg->nLevels = 2;     // Two scanning levels like ReSpeaker
+    // Use minimal SSL configuration for debugging
+    proc->mod_ssl_cfg->nLevels = 1;     // Single level for simplest processing
 
-    // Allocate and set levels array - use ReSpeaker values
+    // Allocate and set levels array - use minimal level
     proc->mod_ssl_cfg->levels = (unsigned int *)malloc(proc->mod_ssl_cfg->nLevels * sizeof(unsigned int));
-    proc->mod_ssl_cfg->levels[0] = 2;   // Level 2 - like ReSpeaker
-    proc->mod_ssl_cfg->levels[1] = 4;   // Level 4 - like ReSpeaker
+    proc->mod_ssl_cfg->levels[0] = 1;   // Level 1 - minimal subdivision
 
     // Allocate and set deltas array - use fixed small deltas for speed
     proc->mod_ssl_cfg->deltas = (signed int *)malloc(proc->mod_ssl_cfg->nLevels * sizeof(signed int));
-    proc->mod_ssl_cfg->deltas[0] = 1;   // Fixed small delta for speed
-    proc->mod_ssl_cfg->deltas[1] = 1;   // Fixed small delta for speed
+    proc->mod_ssl_cfg->deltas[0] = 0;   // Zero delta for maximum speed
 
-    // Use proven ReSpeaker parameters for reliable detection
-    proc->mod_ssl_cfg->nMatches = 10;       // ReSpeaker value for good detection
-    proc->mod_ssl_cfg->probMin = 0.5f;      // ReSpeaker minimum probability
+    // Use ULTRA aggressive parameters to force detection
+    proc->mod_ssl_cfg->nMatches = 1;        // Minimal matches required
+    proc->mod_ssl_cfg->probMin = 0.001f;    // Almost no probability requirement
     proc->mod_ssl_cfg->nRefinedLevels = 1;  // One refinement level
     proc->mod_ssl_cfg->nThetas = 181;       // Number of theta angles
-    proc->mod_ssl_cfg->gainMin = 0.25f;     // ReSpeaker minimum gain
+    proc->mod_ssl_cfg->gainMin = 0.001f;    // Almost no gain requirement
 
     printf("SSL configuration created and configured\n");
 
@@ -230,7 +233,10 @@ int doa_processing_init(doa_processing_t *proc, const char *config_file) {
         doa_processing_cleanup(proc);
         return -1;
     }
-    printf("STFT module created successfully\n");
+
+    // CRITICAL: Enable the STFT module (it's disabled by default!)
+    mod_stft_enable(proc->mod_stft);
+    printf("STFT module created and enabled successfully\n");
 
     // Create noise module
     printf("Creating noise estimation module...\n");
@@ -280,6 +286,14 @@ int doa_processing_init(doa_processing_t *proc, const char *config_file) {
         doa_processing_cleanup(proc);
         return -1;
     }
+
+    // Pots connector: routes SSL output
+    proc->con_pots = con_pots_construct(1, proc->msg_pots_cfg);
+    if (!proc->con_pots) {
+        fprintf(stderr, "Failed to create pots connector\n");
+        doa_processing_cleanup(proc);
+        return -1;
+    }
     printf("Connectors created\n");
 
     // Connect the modules using proper ODAS connector pattern
@@ -291,8 +305,20 @@ int doa_processing_init(doa_processing_t *proc, const char *config_file) {
     // Noise module connects to spectra connector output[0] and powers connector input
     mod_noise_connect(proc->mod_noise, proc->con_spectra->outs[0], proc->con_powers->in);
 
-    // SSL module connects to spectra connector output[1] and pots output
-    mod_ssl_connect(proc->mod_ssl, proc->con_spectra->outs[1], proc->msg_pots);
+    // Enable the noise module
+    mod_noise_enable(proc->mod_noise);
+    printf("Noise module enabled\n");
+
+    // SSL module connects to spectra connector output[1] and pots connector input (like ODAS demo)
+    mod_ssl_connect(proc->mod_ssl, proc->con_spectra->outs[1], proc->con_pots->in);
+
+    // CRITICAL: Enable the SSL module (it's disabled by default!)
+    mod_ssl_enable(proc->mod_ssl);
+    printf("SSL module enabled\n");
+
+    // Connect pots connector output to message object
+    proc->con_pots->outs[0] = proc->msg_pots;
+    printf("Pots connector output connected to message object\n");
 
     printf("Modules connected with proper connector pattern\n");
 
@@ -333,6 +359,11 @@ void doa_processing_cleanup(doa_processing_t *proc) {
     if (proc->con_powers) {
         con_powers_destroy(proc->con_powers);
         proc->con_powers = NULL;
+    }
+
+    if (proc->con_pots) {
+        con_pots_destroy(proc->con_pots);
+        proc->con_pots = NULL;
     }
 
     // Cleanup message objects
@@ -426,6 +457,12 @@ void doa_processing_cleanup(doa_processing_t *proc) {
 
 // Process audio frame with ODAS
 int process_audio_frame(doa_processing_t *proc, float *audio_data, int frames) {
+    static int frame_debug_count = 0;
+    frame_debug_count++;
+    if (frame_debug_count % 100 == 0) {
+        printf("FRAME_DEBUG[%d]: process_audio_frame called\n", frame_debug_count);
+    }
+
     if (!proc || !proc->initialized || !audio_data || frames <= 0) {
         fprintf(stderr, "Invalid parameters: proc=%p, initialized=%d, audio_data=%p, frames=%d\n",
                 proc, proc ? proc->initialized : 0, audio_data, frames);
@@ -474,12 +511,40 @@ int process_audio_frame(doa_processing_t *proc, float *audio_data, int frames) {
         }
     }
 
+    // Debug: Check input data to STFT
+    if (frame_debug_count % 100 == 0) {
+        printf("STFT_INPUT_DEBUG[%d]: First 4 samples from each channel:\n", frame_debug_count);
+        for (int ch = 0; ch < CHANNELS; ch++) {
+            printf("  Ch%d: [%.6f, %.6f, %.6f, %.6f]\n", ch,
+                   proc->msg_hops->hops->array[ch][0],
+                   proc->msg_hops->hops->array[ch][1],
+                   proc->msg_hops->hops->array[ch][2],
+                   proc->msg_hops->hops->array[ch][3]);
+        }
+    }
 
     // Process through STFT module
     int stft_result = mod_stft_process(proc->mod_stft);
     if (stft_result != 0) {
         fprintf(stderr, "STFT processing failed with result: %d\n", stft_result);
         return -1;
+    }
+
+    // Debug: Check STFT output
+    if (frame_debug_count % 100 == 0) {
+        printf("STFT_OUTPUT_DEBUG[%d]: Checking spectra connector input...\n", frame_debug_count);
+        if (proc->con_spectra && proc->con_spectra->in && proc->con_spectra->in->freqs) {
+            printf("  STFT output nSignals=%d, halfFrameSize=%d\n",
+                   proc->con_spectra->in->freqs->nSignals,
+                   proc->con_spectra->in->freqs->halfFrameSize);
+            printf("  First freq values: [%.6f, %.6f, %.6f, %.6f]\n",
+                   proc->con_spectra->in->freqs->array[0][1],  // Ch0, bin 1
+                   proc->con_spectra->in->freqs->array[1][1],  // Ch1, bin 1
+                   proc->con_spectra->in->freqs->array[2][1],  // Ch2, bin 1
+                   proc->con_spectra->in->freqs->array[3][1]); // Ch3, bin 1
+        } else {
+            printf("  ERROR: STFT output is NULL or invalid\n");
+        }
     }
 
     // Process spectra connector - routes STFT output to noise and SSL inputs
@@ -504,9 +569,26 @@ int process_audio_frame(doa_processing_t *proc, float *audio_data, int frames) {
     }
 
     // Process through SSL module (uses con_spectra->outs[1] and has access to noise data)
+    static int ssl_call_count = 0;
+    ssl_call_count++;
+    if (ssl_call_count % 100 == 0) {
+        printf("APP_DEBUG[%d]: About to call mod_ssl_process, proc->mod_ssl=%p\n", ssl_call_count, proc->mod_ssl);
+    }
+
     int ssl_result = mod_ssl_process(proc->mod_ssl);
     if (ssl_result != 0) {
         fprintf(stderr, "SSL processing failed\n");
+        return -1;
+    }
+
+    if (ssl_call_count % 100 == 0) {
+        printf("APP_DEBUG[%d]: mod_ssl_process returned %d\n", ssl_call_count, ssl_result);
+    }
+
+    // Process pots connector - routes SSL output to message object
+    int pots_result = con_pots_process(proc->con_pots);
+    if (pots_result != 0) {
+        fprintf(stderr, "Pots connector processing failed\n");
         return -1;
     }
 
@@ -569,20 +651,26 @@ int process_audio_frame(doa_processing_t *proc, float *audio_data, int frames) {
     // Extract direction of arrival results
     if (proc->msg_pots->pots && proc->msg_pots->pots->nPots > 0) {
         // Find the pot with maximum value (most likely sound source)
-        float max_pot = 0.0f;
+        float max_energy = 0.0f;
         int max_pot_index = -1;
 
+        // Correctly check the energy values (4th component of each pot)
         for (int i = 0; i < proc->msg_pots->pots->nPots; i++) {
-            if (proc->msg_pots->pots->array[i] > max_pot) {
-                max_pot = proc->msg_pots->pots->array[i];
+            float energy = proc->msg_pots->pots->array[i * 4 + 3]; // Energy is 4th component
+            if (energy > max_energy) {
+                max_energy = energy;
                 max_pot_index = i;
             }
         }
 
-        if (max_pot_index >= 0 && max_pot > 0.1f) {  // Threshold for valid detection
+        if (max_pot_index >= 0 && max_energy > 0.001f) {  // Very low threshold for any detection
             if (frame_count % 50 == 0) {  // Print every 50 frames to avoid spam
-                printf("Frame %d: Detected sound source at pot %d with confidence %.3f\n",
-                       frame_count, max_pot_index, max_pot);
+                printf("Frame %d: Detected sound source at pot %d with energy %.6f\n",
+                       frame_count, max_pot_index, max_energy);
+            }
+        } else {
+            if (frame_count % 50 == 0) {
+                printf("Frame %d: No energy detected (max=%.6f)\n", frame_count, max_energy);
             }
         }
     }

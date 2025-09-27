@@ -90,14 +90,30 @@ int main(int argc, char *argv[]) {
     app.running = 1;
     int frame_count = 0;
 
+    printf("Starting main processing loop...\n");
+    fflush(stdout);
+
     while (app.running) {
+        // Debug: Print before first few frames
+        if (frame_count < 5) {
+            printf("About to process frame %d\n", frame_count);
+            fflush(stdout);
+        }
+
         // Run one processing frame
-        if (tetrahedral_app_run(&app) != 0) {
-            fprintf(stderr, "Error in processing frame %d\n", frame_count);
+        int result = tetrahedral_app_run(&app);
+        if (result != 0) {
+            fprintf(stderr, "Error in processing frame %d, tetrahedral_app_run returned: %d\n", frame_count, result);
             break;
         }
 
         frame_count++;
+
+        // Debug: Print after first few frames
+        if (frame_count <= 5) {
+            printf("Successfully processed frame %d\n", frame_count);
+            fflush(stdout);
+        }
 
         // Print status every 100 frames
         if (frame_count % 100 == 0) {
@@ -176,14 +192,32 @@ int tetrahedral_app_init(tetrahedral_app_t *app, const char *config_file, const 
 }
 
 int tetrahedral_app_run(tetrahedral_app_t *app) {
+    static int debug_run_count = 0;
+    debug_run_count++;
+
+    if (debug_run_count <= 3) {
+        printf("tetrahedral_app_run called (call %d)\n", debug_run_count);
+        printf("  app=%p, app->doa_proc=%p, app->audio_device=%p\n",
+               app, app ? app->doa_proc : NULL, app ? app->audio_device : NULL);
+        fflush(stdout);
+    }
+
     if (!app || !app->doa_proc || !app->audio_device) {
+        fprintf(stderr, "tetrahedral_app_run: Invalid parameters\n");
         return -1;
     }
 
     // Read audio data
     float audio_buffer[CHANNELS * FRAME_SIZE];
 
-    if (audio_capture_read(app->audio_device, audio_buffer, FRAME_SIZE) != 0) {
+    if (debug_run_count <= 3) {
+        printf("About to call audio_capture_read...\n");
+        fflush(stdout);
+    }
+
+    int read_result = audio_capture_read(app->audio_device, audio_buffer, FRAME_SIZE);
+    if (read_result != 0) {
+        fprintf(stderr, "Audio capture read failed with error: %d\n", read_result);
         return -1;
     }
 

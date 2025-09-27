@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <math.h>
 #include <windows.h>
 #include <mmsystem.h>
@@ -218,11 +219,56 @@ int audio_capture_init(void **device, int channels, int sample_rate) {
         }
     }
 
+    // Use a standard buffer duration (30ms) for initialization
+    REFERENCE_TIME buffer_duration = 30 * 10000; // 30ms in 100-nanosecond units
+    printf("Using initial buffer duration: %lld (30ms)\n", buffer_duration);
+
     // Initialize audio client
-    REFERENCE_TIME buffer_duration = 10000000; // 1 second buffer
     hr = capture->audio_client->lpVtbl->Initialize(capture->audio_client, AUDCLNT_SHAREMODE_SHARED,
                                                    AUDCLNT_STREAMFLAGS_EVENTCALLBACK, buffer_duration,
                                                    0, capture->wave_format, NULL);
+
+    // If buffer size alignment failed, get the aligned size and retry
+    if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
+        printf("Buffer size not aligned, getting aligned buffer size...\n");
+
+        // Get the aligned buffer size
+        UINT32 buffer_frames;
+        hr = capture->audio_client->lpVtbl->GetBufferSize(capture->audio_client, &buffer_frames);
+        if (FAILED(hr)) {
+            fprintf(stderr, "Failed to get buffer size: 0x%08X\n", hr);
+            CoTaskMemFree(capture->wave_format);
+            capture->audio_client->lpVtbl->Release(capture->audio_client);
+            capture->device->lpVtbl->Release(capture->device);
+            enumerator->lpVtbl->Release(enumerator);
+            CoUninitialize();
+            free(capture);
+            return -1;
+        }
+
+        // Release and recreate the audio client
+        capture->audio_client->lpVtbl->Release(capture->audio_client);
+        hr = capture->device->lpVtbl->Activate(capture->device, &IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&capture->audio_client);
+        if (FAILED(hr)) {
+            fprintf(stderr, "Failed to reactivate audio client: 0x%08X\n", hr);
+            CoTaskMemFree(capture->wave_format);
+            capture->device->lpVtbl->Release(capture->device);
+            enumerator->lpVtbl->Release(enumerator);
+            CoUninitialize();
+            free(capture);
+            return -1;
+        }
+
+        // Calculate aligned buffer duration
+        buffer_duration = (REFERENCE_TIME)((10000.0 * 1000 * buffer_frames / capture->wave_format->nSamplesPerSec) + 0.5);
+        printf("Retrying with aligned buffer: %d frames, duration: %lld\n", buffer_frames, buffer_duration);
+
+        // Retry initialization with aligned buffer size
+        hr = capture->audio_client->lpVtbl->Initialize(capture->audio_client, AUDCLNT_SHAREMODE_SHARED,
+                                                       AUDCLNT_STREAMFLAGS_EVENTCALLBACK, buffer_duration,
+                                                       0, capture->wave_format, NULL);
+    }
+
     if (FAILED(hr)) {
         fprintf(stderr, "Failed to initialize audio client: 0x%08X\n", hr);
         CoTaskMemFree(capture->wave_format);
@@ -301,8 +347,9 @@ int audio_capture_init(void **device, int channels, int sample_rate) {
     }
 
     enumerator->lpVtbl->Release(enumerator);
+
     *device = capture;
-    printf("WASAPI audio capture initialized successfully\n");
+    printf("WASAPI audio capture initialized and started successfully\n");
     return 0;
 }
 
@@ -311,9 +358,11 @@ int audio_capture_read(void *device, float *buffer, int frames) {
         return -1;
     }
 
-    // Check if this is a WAV file device
-    wav_capture_t *wav_capture = (wav_capture_t *)device;
-    if (wav_capture->is_wav_mode) {
+    // Check if this is a WAV file device by checking if the device pointer
+    // points to a wav_capture_t structure with is_wav_mode set
+    // We need to be careful about the casting since both structs have different layouts
+    int *is_wav_mode_ptr = (int*)((char*)device + offsetof(wav_capture_t, is_wav_mode));
+    if (*is_wav_mode_ptr == 1) {
         return audio_capture_read_wav(device, buffer, frames);
     }
 

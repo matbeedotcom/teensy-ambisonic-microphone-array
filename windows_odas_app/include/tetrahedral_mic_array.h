@@ -43,6 +43,7 @@ typedef struct mod_noise_obj mod_noise_obj;
 
 typedef struct con_spectra_obj con_spectra_obj;
 typedef struct con_powers_obj con_powers_obj;
+typedef struct con_pots_obj con_pots_obj;
 
 // DOA processing structure
 typedef struct doa_processing_t {
@@ -77,6 +78,7 @@ typedef struct doa_processing_t {
     // Connectors
     con_spectra_obj *con_spectra;
     con_powers_obj *con_powers;
+    con_pots_obj *con_pots;
 
     // Processing state
     int initialized;
