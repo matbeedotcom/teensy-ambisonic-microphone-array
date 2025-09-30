@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include requirements.txt
+recursive-include odas_py *.py
+recursive-include odas_py *.so
+recursive-include odas_py *.pyd
+recursive-include examples *.py
+exclude test_structure.py
+exclude build.sh

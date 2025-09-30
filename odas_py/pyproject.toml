@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "numpy>=1.19.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odas-py"
+version = "1.0.0"
+description = "Python bindings for ODAS (Open embeddeD Audition System)"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+authors = [
+    {name = "ODAS-Py Contributors"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy>=1.19.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/odas_py"
+Documentation = "https://github.com/yourusername/odas_py/blob/main/README.md"
