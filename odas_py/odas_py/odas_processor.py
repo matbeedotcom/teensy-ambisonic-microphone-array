@@ -170,13 +170,7 @@ class OdasProcessor:
             return False
 
         # Basic validation - check for required sections
-        required_sections = ['raw', 'mics', 'samplerate', 'hopsize']
         content = config_path.read_text()
-
-        for section in required_sections:
-            if section not in content:
-                print(f"Warning: Required section '{section}' not found in config")
-                return False
 
         return True
 

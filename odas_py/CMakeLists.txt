@@ -84,9 +84,17 @@ message(STATUS "ODAS Library: ${ODAS_LIB_DIR}")
 message(STATUS "Python Include: ${Python3_INCLUDE_DIRS}")
 message(STATUS "NumPy Include: ${NUMPY_INCLUDE_DIR}")
 
-# Python extension module - NO ODASLIVE DEMO CODE
+# Python extension module - includes both OdasProcessor and OdasPipeline
 Python3_add_library(_odas_core MODULE
     src/odas_modules.c
+    src/odas_core.c
+    src/odas_wrapper.c
+    # OdasLive demo files needed for OdasProcessor
+    ${ODAS_DEMO_DIR}/configs.c
+    ${ODAS_DEMO_DIR}/objects.c
+    ${ODAS_DEMO_DIR}/threads.c
+    ${ODAS_DEMO_DIR}/parameters.c
+    ${ODAS_DEMO_DIR}/profiler.c
 )
 
 target_include_directories(_odas_core PRIVATE
@@ -94,6 +102,8 @@ target_include_directories(_odas_core PRIVATE
     ${NUMPY_INCLUDE_DIR}
     ${ODAS_INCLUDE_DIR}
     ${ODAS_INCLUDE_DIR}/odas
+    ${ODAS_DEMO_DIR}  # For OdasProcessor wrapper (configs.h, objects.h, threads.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/include  # For odas_wrapper.h
 )
 
 # Add fftw3 include path for MinGW builds
@@ -103,7 +113,28 @@ if(USE_MINGW_BUILD)
     )
 endif()
 
-# No libconfig needed - we're not using odaslive demo code!
+# Add libconfig for OdasProcessor (config-file based API)
+if(USE_MINGW_BUILD AND WIN32)
+    # Use libconfig from MinGW build
+    if(EXISTS "${ODAS_BUILD_DIR}/deps/lib/libconfig.dll.a")
+        target_link_libraries(_odas_core PRIVATE
+            ${ODAS_BUILD_DIR}/deps/lib/libconfig.dll.a
+        )
+        target_include_directories(_odas_core PRIVATE
+            ${ODAS_BUILD_DIR}/deps/include
+        )
+    endif()
+elseif(UNIX)
+    # Use system libconfig on Linux
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(PC_LIBCONFIG libconfig)
+        if(PC_LIBCONFIG_FOUND)
+            target_link_libraries(_odas_core PRIVATE ${PC_LIBCONFIG_LIBRARIES})
+            target_include_directories(_odas_core PRIVATE ${PC_LIBCONFIG_INCLUDE_DIRS})
+        endif()
+    endif()
+endif()
 
 # Link ODAS library
 target_link_libraries(_odas_core PRIVATE

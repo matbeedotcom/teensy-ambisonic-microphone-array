@@ -25,10 +25,28 @@ class CMakeBuild(build_ext):
         build_args = ['--config', cfg]
 
         if platform.system() == "Windows":
-            # Check if MinGW is available
+            # Try to setup MinGW (download if needed)
             import shutil
             mingw_make = shutil.which('mingw32-make') or shutil.which('make')
             mingw_gcc = shutil.which('gcc')
+
+            if not (mingw_make and mingw_gcc):
+                # Try to download portable MinGW
+                print("MinGW not found in PATH, attempting to download portable MinGW...")
+                try:
+                    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'build-scripts'))
+                    from setup_cross_compile import setup_mingw_env
+                    mingw_dir = setup_mingw_env()
+                    mingw_bin = os.path.join(mingw_dir, 'bin')
+                    mingw_gcc = os.path.join(mingw_bin, 'gcc.exe')
+                    mingw_make = os.path.join(mingw_bin, 'mingw32-make.exe')
+                    if not os.path.exists(mingw_make):
+                        mingw_make = os.path.join(mingw_bin, 'make.exe')
+                    print(f"Downloaded and setup MinGW at: {mingw_dir}")
+                except Exception as e:
+                    print(f"Failed to download MinGW: {e}")
+                    mingw_gcc = None
+                    mingw_make = None
 
             if mingw_make and mingw_gcc:
                 # Use MinGW (compatible with ODAS build)
@@ -43,8 +61,8 @@ class CMakeBuild(build_ext):
                 build_args = ['--', '-j4']
             else:
                 # Fall back to MSVC but warn
-                print("WARNING: MinGW not found, using MSVC (may have compatibility issues)")
-                print("Install MinGW-w64 for best compatibility with ODAS")
+                print("WARNING: MinGW not found and download failed, using MSVC (may have compatibility issues)")
+                print("Install MinGW-w64 manually or ensure internet connection for automatic download")
                 cmake_args += [f'-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}']
                 if sys.maxsize > 2**32:
                     cmake_args += ['-A', 'x64']

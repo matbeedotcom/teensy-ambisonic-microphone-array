@@ -129,6 +129,150 @@ _odas_core/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/build
 .PHONY : _odas_core/fast
 
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.obj: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.obj
+
+# target to build an object file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.obj
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.i: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.i
+
+# target to preprocess a source file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.i
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.s: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.s
+
+# target to generate assembly for a file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.c.s
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.obj: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.obj
+
+# target to build an object file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.obj
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.i: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.i
+
+# target to preprocess a source file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.i
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.s: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.s
+
+# target to generate assembly for a file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.c.s
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.obj: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.obj
+
+# target to build an object file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.obj
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.i: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.i
+
+# target to preprocess a source file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.i
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.s: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.s
+
+# target to generate assembly for a file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.c.s
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.obj: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.obj
+
+# target to build an object file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.obj
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.i: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.i
+
+# target to preprocess a source file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.i
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.s: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.s
+
+# target to generate assembly for a file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.c.s
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.obj: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.obj
+
+# target to build an object file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.obj
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.obj
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.i: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.i
+
+# target to preprocess a source file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.i
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.i
+
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.s: mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.s
+
+# target to generate assembly for a file
+mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.s
+.PHONY : mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.c.s
+
+src/odas_core.obj: src/odas_core.c.obj
+.PHONY : src/odas_core.obj
+
+# target to build an object file
+src/odas_core.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_core.c.obj
+.PHONY : src/odas_core.c.obj
+
+src/odas_core.i: src/odas_core.c.i
+.PHONY : src/odas_core.i
+
+# target to preprocess a source file
+src/odas_core.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_core.c.i
+.PHONY : src/odas_core.c.i
+
+src/odas_core.s: src/odas_core.c.s
+.PHONY : src/odas_core.s
+
+# target to generate assembly for a file
+src/odas_core.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_core.c.s
+.PHONY : src/odas_core.c.s
+
 src/odas_modules.obj: src/odas_modules.c.obj
 .PHONY : src/odas_modules.obj
 
@@ -153,6 +297,30 @@ src/odas_modules.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_modules.c.s
 .PHONY : src/odas_modules.c.s
 
+src/odas_wrapper.obj: src/odas_wrapper.c.obj
+.PHONY : src/odas_wrapper.obj
+
+# target to build an object file
+src/odas_wrapper.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_wrapper.c.obj
+.PHONY : src/odas_wrapper.c.obj
+
+src/odas_wrapper.i: src/odas_wrapper.c.i
+.PHONY : src/odas_wrapper.i
+
+# target to preprocess a source file
+src/odas_wrapper.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_wrapper.c.i
+.PHONY : src/odas_wrapper.c.i
+
+src/odas_wrapper.s: src/odas_wrapper.c.s
+.PHONY : src/odas_wrapper.s
+
+# target to generate assembly for a file
+src/odas_wrapper.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/_odas_core.dir/build.make CMakeFiles/_odas_core.dir/src/odas_wrapper.c.s
+.PHONY : src/odas_wrapper.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -162,9 +330,30 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... _odas_core"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.obj"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.i"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/configs.s"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.obj"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.i"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/objects.s"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.obj"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.i"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/parameters.s"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.obj"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.i"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/profiler.s"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.obj"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.i"
+	@echo "... mnt/c/Users/mail/dev/personal/teensy_ambisonic_microphone/odas/demo/odaslive/threads.s"
+	@echo "... src/odas_core.obj"
+	@echo "... src/odas_core.i"
+	@echo "... src/odas_core.s"
 	@echo "... src/odas_modules.obj"
 	@echo "... src/odas_modules.i"
 	@echo "... src/odas_modules.s"
+	@echo "... src/odas_wrapper.obj"
+	@echo "... src/odas_wrapper.i"
+	@echo "... src/odas_wrapper.s"
 .PHONY : help
 
 

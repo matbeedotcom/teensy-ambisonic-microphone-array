@@ -129,28 +129,18 @@ static struct PyModuleDef odas_core_module = {
     .m_methods = module_methods
 };
 
-// Module initialization
-PyMODINIT_FUNC PyInit__odas_core(void) {
-    PyObject *m;
-
-    // Import NumPy
-    import_array();
-
+// Setup function for adding OdasProcessor to an existing module
+// Called from odas_modules.c to register both types in one module
+int setup_odas_processor_type(PyObject *module) {
     if (PyType_Ready(&PyOdasProcessorType) < 0) {
-        return NULL;
-    }
-
-    m = PyModule_Create(&odas_core_module);
-    if (m == NULL) {
-        return NULL;
+        return -1;
     }
 
     Py_INCREF(&PyOdasProcessorType);
-    if (PyModule_AddObject(m, "OdasProcessor", (PyObject *)&PyOdasProcessorType) < 0) {
+    if (PyModule_AddObject(module, "OdasProcessor", (PyObject *)&PyOdasProcessorType) < 0) {
         Py_DECREF(&PyOdasProcessorType);
-        Py_DECREF(m);
-        return NULL;
+        return -1;
     }
 
-    return m;
+    return 0;
 }

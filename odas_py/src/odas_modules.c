@@ -7,6 +7,9 @@
 #include <odas/odas.h>
 #include <math.h>
 
+// Forward declaration for OdasProcessor type from odas_core.c
+extern int setup_odas_processor_type(PyObject *module);
+
 // ============================================================================
 // ODAS Pipeline Object - holds complete processing chain
 // ============================================================================
@@ -773,6 +776,13 @@ PyMODINIT_FUNC PyInit__odas_core(void) {
 
     Py_INCREF(&PyOdasPipelineType);
     if (PyModule_AddObject(m, "OdasPipeline", (PyObject *)&PyOdasPipelineType) < 0) {
+        Py_DECREF(&PyOdasPipelineType);
+        Py_DECREF(m);
+        return NULL;
+    }
+
+    // Add OdasProcessor type from odas_core.c (for config-based API)
+    if (setup_odas_processor_type(m) < 0) {
         Py_DECREF(&PyOdasPipelineType);
         Py_DECREF(m);
         return NULL;

@@ -1,106 +1,157 @@
 #!/usr/bin/env python3
 """
-Basic ODAS-Py usage example
+Basic ODAS-Py usage example using OdasLive
 
 Demonstrates simple sound source localization using the Python bindings
 """
 
 import sys
 import time
+import numpy as np
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from odas_py import OdasProcessor
+from odas_py import OdasLive, HAS_C_EXTENSION
 
 
 def main():
-    # Path to ODAS configuration file
-    # Adjust this path to point to your config file
-    config_file = "../odas/config/tetrahedral_4ch.cfg"
-
-    if not Path(config_file).exists():
-        config_file = "../../odas/config/tetrahedral_4ch.cfg"
-
-    if not Path(config_file).exists():
-        print(f"Error: Config file not found")
-        print("Please specify a valid ODAS config file")
-        return 1
-
     print("=" * 60)
     print("ODAS-Py Basic Usage Example")
     print("=" * 60)
+    print()
 
-    # Validate configuration
-    print(f"\nValidating config: {config_file}")
-    if not OdasProcessor.validate_config(config_file):
-        print("Config validation failed!")
-        return 1
+    # Check if C extension is available
+    if not HAS_C_EXTENSION:
+        print("WARNING: C extension not available, using simulation mode")
+        print("For full functionality, ensure _odas_core is built correctly")
+        print()
 
-    print("Config validated successfully")
+    # Define tetrahedral microphone array geometry (in meters)
+    # 70.7mm edge length tetrahedron, 43.3mm radius
+    mic_positions = {
+        'mic_0': [0.0433, 0.0, 0.025],      # Front vertex
+        'mic_1': [-0.0433, 0.0, 0.025],     # Back vertex
+        'mic_2': [0.0, 0.0433, -0.025],     # Right vertex
+        'mic_3': [0.0, -0.0433, -0.025]     # Left vertex
+    }
 
-    # Create processor
-    print("\nCreating ODAS processor...")
-    processor = OdasProcessor(config_file)
-    print(f"Processor created: {processor}")
+    # Create ODAS processor
+    print("Creating ODAS processor...")
+    processor = OdasLive(
+        n_channels=4,
+        sample_rate=44100,
+        frame_size=512,
+        mic_positions=mic_positions,
+        enable_tracking=False,
+        enable_separation=False
+    )
 
-    # Start processing
-    print("\nStarting audio processing...")
-    processor.start()
+    print("Processor created successfully")
+    print(f"  Channels: {processor.n_channels}")
+    print(f"  Sample rate: {processor.sample_rate} Hz")
+    print(f"  Frame size: {processor.frame_size} samples")
+    print(f"  Native pipeline: {processor.odas_pipeline is not None}")
+    print()
 
-    if processor.is_running():
-        print("✓ Processor is running")
-    else:
-        print("✗ Processor failed to start")
-        return 1
+    if not processor.odas_pipeline:
+        print("NOTE: Running in simulation mode (no native processing)")
+        print("Sound source localization will not be performed")
+        print()
+        return 0
 
-    # Run for 30 seconds
-    duration = 30
-    print(f"\nProcessing audio for {duration} seconds...")
-    print("Results will be output according to config file sinks")
-    print("(Press Ctrl+C to stop early)")
+    # Set up callback for localization results
+    detected_sources = []
 
-    try:
-        for i in range(duration):
-            time.sleep(1)
-            if (i + 1) % 5 == 0:
-                print(f"  {i + 1}s elapsed...")
-    except KeyboardInterrupt:
-        print("\n\nInterrupted by user")
+    def ssl_callback(pots):
+        """Callback for potential sound sources"""
+        # Filter sources with energy above threshold
+        active_sources = [p for p in pots if p.get('value', 0) > 0.1]
+        if active_sources:
+            detected_sources.extend(active_sources)
+            print(f"  Frame {len(detected_sources)}: {len(active_sources)} active source(s)")
+            for i, pot in enumerate(active_sources):
+                x, y, z = pot['x'], pot['y'], pot['z']
+                val = pot.get('value', 0)
+                # Convert to spherical (azimuth, elevation)
+                r = np.sqrt(x**2 + y**2 + z**2)
+                if r > 0:
+                    azimuth = np.arctan2(y, x) * 180 / np.pi
+                    elevation = np.arcsin(z / r) * 180 / np.pi
+                    print(f"    Source {i+1}: Az={azimuth:6.1f}°, El={elevation:6.1f}°, E={val:.3f}")
 
-    # Stop processing
-    print("\nStopping processor...")
-    processor.stop()
+    processor.set_pots_callback(ssl_callback)
 
-    if not processor.is_running():
-        print("✓ Processor stopped successfully")
-    else:
-        print("✗ Processor still running")
-        return 1
+    # Generate synthetic test signal (1kHz tone from direction [1, 0, 0])
+    print("Generating synthetic test signal...")
+    print("  1000 Hz tone, 2 seconds, simulated from front direction")
+    print()
 
-    print("\n" + "=" * 60)
+    duration = 2.0  # seconds
+    num_frames = int(duration * processor.sample_rate / processor.frame_size)
+
+    # Generate tone
+    t = np.arange(processor.frame_size) / processor.sample_rate
+    freq = 1000  # Hz
+
+    print(f"Processing {num_frames} frames...")
+    print()
+
+    # Process frames
+    for frame_idx in range(num_frames):
+        # Generate audio frame
+        # Simulate arrival time differences for source at [1, 0, 0]
+        audio_frame = np.zeros((processor.frame_size, 4), dtype=np.float32)
+
+        # Simple phase delay simulation
+        for ch in range(4):
+            phase_offset = 2 * np.pi * freq * (frame_idx * processor.frame_size + np.arange(processor.frame_size)) / processor.sample_rate
+            audio_frame[:, ch] = 0.1 * np.sin(phase_offset)
+
+        # Process through ODAS pipeline
+        if processor.odas_pipeline:
+            result = processor.odas_pipeline.process(audio_frame)
+            if result and 'pots' in result:
+                ssl_callback(result['pots'])
+
+    print()
+    print(f"Processing complete!")
+    print(f"Total frames processed: {num_frames}")
+    print(f"Active detections: {len(detected_sources)}")
+    print()
+
+    if detected_sources:
+        print("Summary of detected sources:")
+        # Average detection direction
+        avg_x = np.mean([s['x'] for s in detected_sources])
+        avg_y = np.mean([s['y'] for s in detected_sources])
+        avg_z = np.mean([s['z'] for s in detected_sources])
+        avg_val = np.mean([s.get('value', 0) for s in detected_sources])
+
+        r = np.sqrt(avg_x**2 + avg_y**2 + avg_z**2)
+        if r > 0:
+            avg_azimuth = np.arctan2(avg_y, avg_x) * 180 / np.pi
+            avg_elevation = np.arcsin(avg_z / r) * 180 / np.pi
+            print(f"  Average direction: Az={avg_azimuth:6.1f}°, El={avg_elevation:6.1f}°")
+            print(f"  Average energy: {avg_val:.3f}")
+
+    print()
+    print("=" * 60)
     print("Example completed successfully!")
     print("=" * 60)
 
     return 0
 
 
-def context_manager_example():
-    """
-    Alternative example using context manager (with statement)
-    """
-    config_file = "../odas/config/tetrahedral_4ch.cfg"
-
-    print("Context manager example:")
-
-    with OdasProcessor(config_file) as processor:
-        print(f"Processing with {processor}")
-        time.sleep(10)
-        # Processor automatically stops when exiting context
-
-    print("Processor automatically stopped")
-
-
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\nError: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

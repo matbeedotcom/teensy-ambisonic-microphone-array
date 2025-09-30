@@ -44,3 +44,9 @@ cmake_install.cmake
 # OS
 .DS_Store
 Thumbs.db
+
+**/dist
+**/dist-windows
+**/build
+**/build-windows
+**/mingw-portable
